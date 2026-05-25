@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Haiku — Varaa neuvotteluhuone</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f5f0;color:#1a1a1a;min-height:100vh}
+  .container{max-width:780px;margin:0 auto;padding:2rem 1rem}
+  header{text-align:center;margin-bottom:2.5rem}
+  header h1{font-size:2rem;font-weight:300;letter-spacing:0.18em;color:#1a1a1a}
+  header p{font-size:0.85rem;color:#777;margin-top:0.4rem;letter-spacing:0.04em}
+
+  .rooms{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}
+  .room-card{background:#fff;border:1.5px solid #e8e4dc;border-radius:10px;padding:1.25rem 1.5rem;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+  .room-card:hover{border-color:#b5a98e;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+  .room-card.active{border-color:#1a1a1a;box-shadow:0 2px 12px rgba(0,0,0,0.1)}
+  .room-name{font-size:1rem;font-weight:600;letter-spacing:0.08em;margin-bottom:0.3rem}
+  .room-cap{font-size:0.82rem;color:#888;margin-bottom:0.5rem}
+  .room-price{font-size:0.88rem;color:#555;font-weight:500}
+
+  .section-title{font-size:0.78rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#888;margin-bottom:0.75rem}
+
+  .week-nav{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem}
+  .week-nav button{background:#fff;border:1px solid #e0dbd3;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.85rem;color:#555;transition:background .12s}
+  .week-nav button:hover{background:#f0ece6}
+  .week-label{flex:1;text-align:center;font-size:0.9rem;font-weight:500;color:#333}
+
+  .cal-wrap{background:#fff;border:1px solid #e8e4dc;border-radius:10px;overflow:hidden;margin-bottom:1.5rem}
+  .cal-grid{display:grid;grid-template-columns:48px repeat(7,1fr)}
+  .cal-head{background:#faf8f5;border-bottom:1px solid #eeebe6;padding:8px 4px;text-align:center;font-size:0.72rem;font-weight:600;color:#999;letter-spacing:0.04em}
+  .cal-head.today{color:#1a1a1a}
+  .cal-head.selected-day{color:#1a1a1a;background:#f0ece6}
+  .time-label{font-size:0.68rem;color:#bbb;text-align:right;padding:0 6px;border-right:1px solid #f0ede8;display:flex;align-items:center;justify-content:flex-end;min-height:32px;border-bottom:1px solid #f5f3f0}
+  .cal-slot{border-right:1px solid #f5f3f0;border-bottom:1px solid #f5f3f0;min-height:32px;cursor:pointer;position:relative;transition:background .1s}
+  .cal-slot:last-child{border-right:none}
+  .cal-slot:hover:not(.booked):not(.past){background:#f5f2ec}
+  .cal-slot.booked{background:#e8f4ef;cursor:default}
+  .cal-slot.past{opacity:0.4;cursor:default}
+  .cal-slot.selected{background:#d4e8e0}
+  .booking-label{position:absolute;inset:2px;background:#4a9e7f;border-radius:3px;display:flex;align-items:center;padding:0 5px;color:white;font-size:0.65rem;font-weight:500;overflow:hidden;white-space:nowrap}
+
+  .form-card{background:#fff;border:1px solid #e8e4dc;border-radius:10px;padding:1.5rem;margin-bottom:1.5rem}
+  .form-card h2{font-size:1rem;font-weight:600;margin-bottom:1.25rem;color:#1a1a1a}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:0.75rem;color:#888;font-weight:500;letter-spacing:0.03em}
+  .field input,.field select{padding:8px 10px;border:1px solid #ddd8d0;border-radius:6px;font-size:0.88rem;background:#fff;color:#1a1a1a;transition:border-color .12s}
+  .field input:focus,.field select:focus{outline:none;border-color:#999}
+  .summary{background:#faf8f5;border:1px solid #eeebe6;border-radius:8px;padding:1rem;margin-bottom:1rem}
+  .s-row{display:flex;justify-content:space-between;font-size:0.85rem;padding:3px 0;color:#666}
+  .s-row strong{color:#1a1a1a;font-weight:600}
+  .s-row.total{border-top:1px solid #e8e4dc;margin-top:6px;padding-top:8px;font-size:0.9rem}
+  .btn{display:block;width:100%;padding:11px;background:#1a1a1a;color:#fff;border:none;border-radius:7px;font-size:0.9rem;font-weight:500;cursor:pointer;letter-spacing:0.04em;transition:background .12s}
+  .btn:hover{background:#333}
+  .btn:disabled{background:#ccc;cursor:default}
+  .msg{margin-top:0.75rem;padding:10px 14px;border-radius:6px;font-size:0.84rem}
+  .msg.ok{background:#e8f4ef;color:#2d6b4e}
+  .msg.err{background:#fdecea;color:#b03030}
+
+  .no-room{text-align:center;padding:2rem;color:#aaa;font-size:0.85rem}
+
+  /* Admin */
+  #admin-toggle{position:fixed;bottom:1.5rem;right:1.5rem;background:#fff;border:1px solid #ddd;border-radius:20px;padding:6px 14px;font-size:0.78rem;color:#888;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.08);z-index:100}
+  #admin-toggle:hover{color:#333}
+  .admin-panel{background:#fff;border:1px solid #e8e4dc;border-radius:10px;padding:1.5rem;margin-top:1rem}
+  .admin-panel h2{font-size:1rem;font-weight:600;margin-bottom:1rem}
+  .pw-row{display:flex;gap:8px;margin-bottom:1rem}
+  .pw-row input{flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:0.88rem}
+  .pw-row button{padding:8px 16px;background:#1a1a1a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem}
+  .b-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0ede8;font-size:0.84rem}
+  .b-item:last-child{border-bottom:none}
+  .b-info{color:#555}
+  .b-main{font-weight:600;color:#1a1a1a;margin-bottom:2px}
+  .del-btn{background:none;border:1px solid #e0a0a0;color:#c05050;border-radius:5px;padding:4px 10px;font-size:0.75rem;cursor:pointer}
+  .del-btn:hover{background:#fdecea}
+  .filter-tabs{display:flex;gap:6px;margin-bottom:1rem}
+  .ftab{background:#f0ece6;border:none;border-radius:5px;padding:5px 12px;font-size:0.8rem;cursor:pointer;color:#666}
+  .ftab.active{background:#1a1a1a;color:#fff}
+  .loading{text-align:center;padding:2rem;color:#aaa;font-size:0.85rem}
+
+  @media(max-width:520px){
+    .rooms{grid-template-columns:1fr}
+    .form-grid{grid-template-columns:1fr}
+    .cal-grid{grid-template-columns:36px repeat(7,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>HAIKU</h1>
+    <p>Varaa neuvotteluhuone</p>
+  </header>
+
+  <!-- Room selection -->
+  <div class="section-title">Valitse huone</div>
+  <div class="rooms">
+    <div class="room-card" id="card-IKIGAI" onclick="selectRoom('IKIGAI')">
+      <div class="room-name">IKIGAI</div>
+      <div class="room-cap">12 henkilöä</div>
+      <div class="room-price">50 € / h (+ alv 25,5 %)</div>
+    </div>
+    <div class="room-card" id="card-WABI-SABI" onclick="selectRoom('WABI-SABI')">
+      <div class="room-name">WABI-SABI</div>
+      <div class="room-cap">6 henkilöä</div>
+      <div class="room-price">35 € / h (+ alv 25,5 %)</div>
+    </div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="section-title">Valitse päivä ja aika</div>
+  <div class="week-nav">
+    <button onclick="changeWeek(-1)">&#8249;</button>
+    <span class="week-label" id="week-label"></span>
+    <button onclick="changeWeek(1)">&#8250;</button>
+  </div>
+  <div class="cal-wrap">
+    <div class="cal-grid" id="cal-grid">
+      <div class="loading" style="grid-column:1/-1;padding:2rem">Ladataan varauksia...</div>
+    </div>
+  </div>
+
+  <!-- Booking form -->
+  <div id="form-section" style="display:none">
+    <div class="form-card">
+      <h2 id="form-title">Varaa huone</h2>
+      <div class="form-grid">
+        <div class="field"><label>Nimi *</label><input type="text" id="f-name" placeholder="Etunimi Sukunimi"></div>
+        <div class="field"><label>Yritys</label><input type="text" id="f-company" placeholder="Yritys Oy"></div>
+        <div class="field"><label>Sähköposti *</label><input type="email" id="f-email" placeholder="nimi@yritys.fi"></div>
+        <div class="field"><label>Puhelin</label><input type="tel" id="f-phone" placeholder="+358 40 123 4567"></div>
+        <div class="field"><label>Alkaa *</label><select id="f-start" onchange="updateSummary()"></select></div>
+        <div class="field"><label>Päättyy *</label><select id="f-end" onchange="updateSummary()"></select></div>
+      </div>
+      <div class="summary">
+        <div class="s-row"><span>Huone</span><strong id="s-room">—</strong></div>
+        <div class="s-row"><span>Päivä</span><strong id="s-date">—</strong></div>
+        <div class="s-row"><span>Kesto</span><strong id="s-dur">—</strong></div>
+        <div class="s-row"><span>Hinta (alv 0%)</span><strong id="s-price">—</strong></div>
+        <div class="s-row total"><span>Hinta (sis. alv 25,5%)</span><strong id="s-price-vat">—</strong></div>
+      </div>
+      <button class="btn" id="submit-btn" onclick="submitBooking()">Lähetä varausvahvistus</button>
+      <div id="form-msg"></div>
+    </div>
+  </div>
+
+  <!-- Admin -->
+  <div id="admin-section" style="display:none">
+    <div class="admin-panel">
+      <h2>Admin — varaukset</h2>
+      <div id="admin-login">
+        <div class="pw-row">
+          <input type="password" id="admin-pw" placeholder="Salasana" onkeydown="if(event.key==='Enter')checkAdmin()">
+          <button onclick="checkAdmin()">Kirjaudu</button>
+        </div>
+        <div id="pw-err" style="color:#b03030;font-size:0.82rem;display:none">Väärä salasana.</div>
+      </div>
+      <div id="admin-content" style="display:none">
+        <div class="filter-tabs">
+          <button class="ftab active" onclick="setFilter('all',this)">Kaikki</button>
+          <button class="ftab" onclick="setFilter('IKIGAI',this)">Ikigai</button>
+          <button class="ftab" onclick="setFilter('WABI-SABI',this)">Wabi-Sabi</button>
+        </div>
+        <div id="booking-list"><div class="loading">Ladataan...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button id="admin-toggle" onclick="toggleAdmin()">⚙ Admin</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://oqmvtequloyoptncrldz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_b1jC_UN5mERDGPkXBTjPDQ_hPl-sqfU';
+const ADMIN_PASSWORD = 'haiku2026';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const ROOMS = { 'IKIGAI': { cap: 12, price: 50 }, 'WABI-SABI': { cap: 6, price: 35 } };
+const FI_DAYS = ['MA','TI','KE','TO','PE','LA','SU'];
+const FI_MONTHS = ['tammikuuta','helmikuuta','maaliskuuta','huhtikuuta','toukokuuta','kesäkuuta','heinäkuuta','elokuuta','syyskuuta','lokakuuta','marraskuuta','joulukuuta'];
+const HOURS = Array.from({length:14}, (_,i) => i + 8); // 8–21
+
+let selectedRoom = null;
+let selectedDate = null;
+let weekOffset = 0;
+let bookings = [];
+let adminOpen = false;
+let adminAuthed = false;
+let adminFilter = 'all';
+
+function getMonday(d) {
+  const dt = new Date(d);
+  const day = dt.getDay();
+  const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+  dt.setDate(diff); dt.setHours(0,0,0,0); return dt;
+}
+function getWeekDays() {
+  const mon = getMonday(new Date());
+  mon.setDate(mon.getDate() + weekOffset * 7);
+  return Array.from({length:7}, (_,i) => { const d = new Date(mon); d.setDate(mon.getDate()+i); return d; });
+}
+function dateKey(d) { return d.toISOString().slice(0,10); }
+function isToday(d) { return dateKey(d) === dateKey(new Date()); }
+function fmtDate(d) { return d.getDate() + '.' + (d.getMonth()+1) + '.'; }
+function fmtDateLong(d) { return d.getDate() + '. ' + FI_MONTHS[d.getMonth()] + ' ' + d.getFullYear(); }
+
+async function loadBookings() {
+  const days = getWeekDays();
+  const from = dateKey(days[0]);
+  const to = dateKey(days[6]);
+  const { data, error } = await sb.from('bookings').select('*').gte('date', from).lte('date', to);
+  if (!error && data) bookings = data;
+  renderCal();
+}
+
+function isSlotBooked(room, date, hour) {
+  const dk = dateKey(date);
+  return bookings.some(b => b.room === room && b.date === dk && hour >= b.start_h && hour < b.end_h);
+}
+function getBooking(room, date, hour) {
+  const dk = dateKey(date);
+  return bookings.find(b => b.room === room && b.date === dk && hour >= b.start_h && hour < b.end_h);
+}
+function isPast(d, h) {
+  const now = new Date();
+  const slotDate = new Date(d);
+  slotDate.setHours(h, 0, 0, 0);
+  return slotDate < now;
+}
+
+function renderCal() {
+  const days = getWeekDays();
+  const mon = days[0];
+  document.getElementById('week-label').textContent =
+    fmtDate(mon) + '–' + fmtDate(days[6]) + ' ' + mon.getFullYear();
+  const grid = document.getElementById('cal-grid');
+  let html = '<div class="cal-head"></div>';
+  days.forEach((d, i) => {
+    const cls = isToday(d) ? ' today' : '';
+    const selCls = selectedDate && dateKey(d) === dateKey(selectedDate) ? ' selected-day' : '';
+    html += `<div class="cal-head${cls}${selCls}">${FI_DAYS[i]}<br>${fmtDate(d)}</div>`;
+  });
+  HOURS.forEach(h => {
+    html += `<div class="time-label">${h}</div>`;
+    days.forEach(d => {
+      const booked = selectedRoom && isSlotBooked(selectedRoom, d, h);
+      const past = isPast(d, h);
+      const bk = booked ? getBooking(selectedRoom, d, h) : null;
+      const isSelDay = selectedDate && dateKey(d) === dateKey(selectedDate);
+      const isSelHour = selectedDate && selectedDate.getHours() === h;
+      const sel = isSelDay && isSelHour && !booked;
+      let inner = '';
+      if (booked && bk && bk.start_h === h) {
+        inner = `<div class="booking-label">${bk.name.split(' ')[0]}</div>`;
+      }
+      const clickable = !booked && !past && selectedRoom;
+      html += `<div class="cal-slot${booked?' booked':''}${past?' past':''}${sel?' selected':''}"
+        ${clickable ? `onclick="selectSlot(${d.getTime()},${h})"` : ''}>${inner}</div>`;
+    });
+  });
+  grid.innerHTML = html;
+}
+
+function selectRoom(r) {
+  selectedRoom = r; selectedDate = null;
+  document.querySelectorAll('.room-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('card-' + r).classList.add('active');
+  document.getElementById('form-section').style.display = 'none';
+  renderCal();
+}
+
+function selectSlot(ts, h) {
+  if (!selectedRoom) return;
+  selectedDate = new Date(ts); selectedDate.setHours(h, 0, 0, 0);
+  showForm(); renderCal();
+}
+
+function showForm() {
+  document.getElementById('form-section').style.display = 'block';
+  document.getElementById('form-title').textContent = selectedRoom + ' — ' + fmtDateLong(selectedDate);
+  const ss = document.getElementById('f-start');
+  const se = document.getElementById('f-end');
+  ss.innerHTML = ''; se.innerHTML = '';
+  const dk = dateKey(selectedDate);
+  let startH = selectedDate.getHours();
+  for (let i = startH; i < 22; i++) {
+    if (!bookings.some(b => b.room===selectedRoom && b.date===dk && i>=b.start_h && i<b.end_h)) {
+      ss.add(new Option(i + ':00', i));
+    } else break;
+  }
+  ss.onchange = () => { updateEndOptions(); updateSummary(); };
+  updateEndOptions(); updateSummary();
+}
+
+function updateEndOptions() {
+  const ss = document.getElementById('f-start');
+  const se = document.getElementById('f-end');
+  const sh = parseInt(ss.value) || selectedDate.getHours();
+  const dk = dateKey(selectedDate);
+  se.innerHTML = '';
+  for (let i = sh + 1; i <= 22; i++) {
+    const conflict = bookings.some(b => b.room===selectedRoom && b.date===dk && sh<b.end_h && i>b.start_h);
+    if (!conflict) se.add(new Option(i + ':00', i));
+    else break;
+  }
+}
+
+function updateSummary() {
+  const sh = parseInt(document.getElementById('f-start').value) || 0;
+  const eh = parseInt(document.getElementById('f-end').value) || 0;
+  const dur = eh - sh;
+  const price = (ROOMS[selectedRoom]?.price || 0) * (dur > 0 ? dur : 0);
+  document.getElementById('s-room').textContent = selectedRoom || '—';
+  document.getElementById('s-date').textContent = selectedDate ? fmtDateLong(selectedDate) : '—';
+  document.getElementById('s-dur').textContent = dur > 0 ? dur + ' h' : '—';
+  document.getElementById('s-price').textContent = price > 0 ? price + ' €' : '—';
+  document.getElementById('s-price-vat').textContent = price > 0 ? (price * 1.255).toFixed(2) + ' €' : '—';
+}
+
+async function submitBooking() {
+  const name = document.getElementById('f-name').value.trim();
+  const company = document.getElementById('f-company').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const sh = parseInt(document.getElementById('f-start').value);
+  const eh = parseInt(document.getElementById('f-end').value);
+  const msgEl = document.getElementById('form-msg');
+
+  if (!name || !email || !sh || !eh || eh <= sh) {
+    msgEl.innerHTML = '<div class="msg err">Täytä pakolliset kentät ja valitse kelvollinen aika.</div>';
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Lähetetään...';
+
+  const { error } = await sb.from('bookings').insert([{
+    room: selectedRoom, date: dateKey(selectedDate),
+    start_h: sh, end_h: eh, name, company, email, phone
+  }]);
+
+  btn.disabled = false; btn.textContent = 'Lähetä varausvahvistus';
+
+  if (error) {
+    msgEl.innerHTML = '<div class="msg err">Virhe: ' + error.message + '</div>';
+  } else {
+    msgEl.innerHTML = '<div class="msg ok">✓ Varaus tehty! Sähköpostivahvistus lähetetään osoitteeseen ' + email + '.</div>';
+    ['f-name','f-company','f-email','f-phone'].forEach(id => document.getElementById(id).value = '');
+    selectedDate = null;
+    await loadBookings();
+  }
+}
+
+async function changeWeek(dir) {
+  weekOffset += dir;
+  await loadBookings();
+}
+
+function toggleAdmin() {
+  adminOpen = !adminOpen;
+  document.getElementById('admin-section').style.display = adminOpen ? 'block' : 'none';
+  document.getElementById('admin-toggle').textContent = adminOpen ? '✕ Sulje' : '⚙ Admin';
+  if (adminOpen && adminAuthed) renderAdminList();
+}
+
+function checkAdmin() {
+  const pw = document.getElementById('admin-pw').value;
+  if (pw === ADMIN_PASSWORD) {
+    adminAuthed = true;
+    document.getElementById('admin-login').style.display = 'none';
+    document.getElementById('admin-content').style.display = 'block';
+    loadAllBookings();
+  } else {
+    document.getElementById('pw-err').style.display = 'block';
+  }
+}
+
+let allBookings = [];
+async function loadAllBookings() {
+  const { data } = await sb.from('bookings').select('*').order('date').order('start_h');
+  if (data) { allBookings = data; renderAdminList(); }
+}
+
+function setFilter(f, el) {
+  adminFilter = f;
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderAdminList();
+}
+
+function renderAdminList() {
+  const list = document.getElementById('booking-list');
+  const filtered = allBookings.filter(b => adminFilter === 'all' || b.room === adminFilter);
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="color:#aaa;font-size:0.84rem;padding:8px">Ei varauksia.</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(b => `
+    <div class="b-item">
+      <div class="b-info">
+        <div class="b-main">${b.room} · ${b.date} · ${b.start_h}:00–${b.end_h}:00</div>
+        <div>${b.name}${b.company ? ' ('+b.company+')' : ''} · ${b.email}${b.phone ? ' · '+b.phone : ''}</div>
+      </div>
+      <button class="del-btn" onclick="deleteBooking('${b.id}')">Peruuta</button>
+    </div>`).join('');
+}
+
+async function deleteBooking(id) {
+  if (!confirm('Peruutetaanko varaus?')) return;
+  await sb.from('bookings').delete().eq('id', id);
+  allBookings = allBookings.filter(b => b.id !== id);
+  renderAdminList();
+  await loadBookings();
+}
+
+loadBookings();
+</script>
+</body>
+</html>
